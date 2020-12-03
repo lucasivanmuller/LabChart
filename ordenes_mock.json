@@ -1,0 +1,25 @@
+{
+  "0": 352,
+  "ordenes": [
+    {
+      "ordenes": {
+        "HC": "13525476",
+        "NRO_SOLICITUD": "02828223",
+        "RECEPCION": "12/11/2020 05:00",
+        "ESTADO": "TOTAL"
+      },
+      "ordenes (copy)": {
+        "HC": "134768",
+        "NRO_SOLICITUD": "02828223",
+        "RECEPCION": "12/11/2020 05:00",
+        "ESTADO": "TOTAL"
+      },
+      "ordenes (copy 2)": {
+        "HC": "47983",
+        "NRO_SOLICITUD": "02828223",
+        "RECEPCION": "12/11/2020 05:00",
+        "ESTADO": "TOTAL"
+      }
+    }
+  ]
+}

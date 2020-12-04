@@ -8,27 +8,29 @@
             'Excluir' => array('BAS', 'EOS', 'META', 'MI', 'MON', 'PRO', 'SB', 'SUMAL')
         );
         function pacientes_por_piso($piso) {	
-                $pacientes_array = array();
-                if ($debugging) {
-                    $pacientes_raw = file_get_contents("pacientes_mock.json");
-                } else {
-                    $pacientes_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=pacientes&piso=".$piso), true);
-                }
-                foreach ($pacientes_raw['pacientes'] as $paciente) {
-		$pacientes_array[] = array("HC" => $paciente['pacientes']['hist_clinica'], "Nombre" => $paciente['pacientes']['apellido1'].", ".$paciente['pacientes']['nombre'],"Cama" => $paciente['pacientes']['cama'], "Ordenes" => array());
-                }
-		return $pacientes_array;
+            global $debugging;
+            $pacientes_array = array();
+            if ($debugging) {
+                $pacientes_raw = json_decode(file_get_contents("pacientes_mock.json"), true);
+            } else {
+                $pacientes_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=pacientes&piso=".$piso), true);
+            }
+            foreach ($pacientes_raw['pacientes'] as $paciente) {
+                $pacientes_array[] = array('HC' => $paciente['pacientes']['hist_clinica'], "Nombre" => $paciente['pacientes']['apellido1'].", ".$paciente['pacientes']['nombre'],"Cama" => $paciente['pacientes']['cama'], "Ordenes" => array());
+            }
+            return $pacientes_array;
 	}
 
 	function ordenes_de_paciente($HC) {	
+            global $debugging;
         $ordenes_array = array();
         if ($debugging) {
-            $ordenes_raw = file_get_contents("ordenes_mock.json");
+            $ordenes_raw = json_decode(file_get_contents("ordenes_mock.json"), true);
         } else {
             $ordenes_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=ordenestot&HC=".$HC), true);
         }
 		foreach ($ordenes_raw['ordenestot'] as $orden)	{
-			$ordenes_array[] = array("HC" => $orden['ordenestot']['HC'], "n_solicitud" => $orden['ordenestot']['NRO_SOLICITUD'], "timestamp" => $orden['ordenestot']['RECEPCION']);
+			$ordenes_array[] = array("n_solicitud" => $orden['ordenestot']['NRO_SOLICITUD'], "timestamp" => $orden['ordenestot']['RECEPCION']);
 		}
 		return $ordenes_array;
 	}
@@ -58,7 +60,7 @@
                 $categoria_encontrada = false;
                 foreach ($agrupar_estudios_array as $grupo => $estudios) {
                     if (in_array($codigo, $estudios)) {
-                        $estudio_array[$grupo][$codigo] = array(
+                        $estudio_array[$grupo][] = array(
                             'nombre_estudio' => $estudio['estudiostot']['NOMANALISIS'], 
                             'resultado' => $estudio['estudiostot']['RESULTADO'],
                             'unidades' => $estudio['estudiostot']['UNIDAD']
@@ -78,8 +80,15 @@
             return $estudio_array;
 	}
 
+$array_final = array();
         
+$pacientes_array = pacientes_por_piso(7);
 
-echo json_encode(procesar_estudio("02828223"));
-
+foreach ($pacientes_array as $paciente) {
+    $HC = $paciente['HC'];
+    foreach (ordenes_de_paciente($HC) as $orden) {
+        $array_final[$orden] = procesar_estudio($orden);
+    }
+}   
+echo json_encode($array_final);
 ?>

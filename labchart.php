@@ -1,26 +1,28 @@
 <?php
 
-        $debugging = true; # Cambia la fuente de datos. Si false: consulta en la DB del hospital. Si true: usa los datos de carpeta mock_data
+        $debugging = true; # Cambia la fuente de datos. False: consulta en la DB del hospital. True: usa los datos de carpeta mock_data
         if ($debugging) {
-            $fecha_actual = "07/12/2020";
+            $fecha_actual = "07/12/2020"; #Para que trate al mock como laboratorios de hoy.
         }
         else {
             $fecha_actual = date('d/m/Y');
         }
+        
         $agrupar_estudios_array = array(
             'orden' => array(),
-            'Hemograma' => array('HTO', 'HGB', "HB", "CHCM", "HCM", "VCM", "RDW", 'LEU','NSEG', 'CAY',  'LIN', 'PLLA', "RPLA", ),
+            'Hemograma' => array('HTO', 'HGB',  "CHCM", "HCM", "VCM", "RDW", 'LEU','NSEG', 'CAY',  'LIN', 'PLLA' ),
             'Medio interno' => array('NAS', 'KAS', "MGS", 'CAS', "CL", "FOS", "GLU"),
             'Funcion renal' => array('URE', 'CRE'),
             'Hepatograma' => array('TGO', 'TGP', 'ALP', 'BIT', 'BID', 'BILI', 'GGT'),
             'Coagulograma' => array('QUICKA', 'QUICKR', "APTT"),
-            'Gasometria' => array("PHT", "PO2T", "PCO2T", "CO3H", "EB", "SO2"),
+            'Gasometria' => array("PHT", "PO2T", "PCO2T", "CO3H", "EB", "SO2", "HB"),
             'Dosajes' => array("FK"),
-            'Excluir' => array('BAS', 'EOS', 'META', 'MI', 'MON', 'PRO', 'SB', 'SUMAL', "SR", "TM", "TEMP", "CTO2", "ERC", "QUICKT", "FIO2", "A/A"),
+            'Excluir' => array('BAS', 'EOS', 'META', 'MI', 'MON', 'PRO', 'SB', 'SUMAL', "SR", "TM", "NE", "TEMP", "CTO2", "ERC", "QUICKT", "FIO2", "A/A", "RPLA"),
             'Otros' => array()
         );
 
         function pacientes_por_piso($piso) {	
+            #Consulta al web-service función pacientes, organiza los datos en un array (HC, Nombre, Cama)
             global $debugging;
             $pacientes_array = array();
             if ($debugging) {
@@ -35,6 +37,8 @@
 	}
 
 	function ordenes_de_paciente($HC) {	
+            /* Consulta al web-service función ordenestot, junta todas las ordenes de un paciente (identificado por HC) 
+             * en un array (n_solicitud, timestamp)" */
             global $debugging, $fecha_actual;
             $ordenes_array = array();
             if ($debugging) {
@@ -44,7 +48,7 @@
             }
                     foreach ($ordenes_raw['ordenestot'] as $orden)	{
                             $fecha_labo = substr($orden['ordenestot']['RECEPCION'], 0, 10); #Elimina la hora del timestamp del lab, deja solo la fecha.
-                            if ($fecha_labo == $fecha_actual) {  #Limita los laboratorios a los que sean del dÃ­a actual. TODO: Manejo de fechas.
+                            if ($fecha_labo == $fecha_actual) {  #Limita los laboratorios a los que sean del di­a actual. TODO: Manejo de fechas para incluir labos viejos.
                                     $ordenes_array[] = array("n_solicitud" => $orden['ordenestot']['NRO_SOLICITUD'], "timestamp" => $orden['ordenestot']['RECEPCION']);
 
                             }
@@ -55,7 +59,26 @@
             }
 
 	function procesar_estudio($orden) {
-            
+            /* Busca los resultados de laboratorio de una orden, y los preprocesa para darles la estructura final:
+             * array(
+             *      "orden" => 01234567
+             *      "Hemograma" => array(
+             *              "HTO" => array(
+             *                      "nombre_estudio" => "Hematocrito",
+             *                      "resultado" => "34",
+             *                      "unidades" => "%"
+             *                      )
+             *              "LEU" => array(
+             *                      nombre_estudio => Leucocitos
+             *                      "resultado => 11.2"
+             *                      )
+             *              (...)
+             *              )
+             *      "Hepatograma" => array(
+             *              (...)
+             *              )    
+             * )
+             */
             #Recopila los datos en bruto del laboratorio y los pre-procesa
             global $debugging, $agrupar_estudios_array, $grupo_estudios_actual;
             $estudio_array = array();
@@ -65,18 +88,20 @@
                 $estudio_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=estudiostot&orden=".$orden), true);
             }
             $estudio_array['orden'] = $orden;
-            
             #Agrupa cada resultado del laboratorio segun los grupos definidos en $agrupar_estudios_array (Hemograma, hepatograma, etc)
             foreach ($estudio_raw['estudiostot'] as $estudio) {	
                 $codigo = $estudio['estudiostot']['CODANALISI']; 
                 if (in_array($codigo, $agrupar_estudios_array['Excluir'])) {
                     continue;
                 }
-                if ($estudio['estudiostot']['NOMANALISIS'] == " ") {
+                if ($estudio['estudiostot']['NOMANALISIS'] == " ") { # Algunos "resultados" que en realidad no lo son (ej: orden de material descartable utilizado, interconsultas)
                     continue;
                 }
+                
+                 # Itera en los distintos $grupos de $estudios predefinidos buscando a cual pertenece el $estudio. Cuando lo encuentra, break
+                 # Si no lo encuentra: el grupo es "Otros".
                 $categoria_encontrada = false;
-                foreach ($agrupar_estudios_array as $grupo => $estudios) {
+                foreach ($agrupar_estudios_array as $grupo => $estudios) { 
                     if (in_array($codigo, $estudios)) {
                         $estudio_array[$grupo][$codigo] = array(
                             'nombre_estudio' => $estudio['estudiostot']['NOMANALISIS'], 
@@ -84,7 +109,7 @@
                             'unidades' => $estudio['estudiostot']['UNIDAD']
                             );
                         $categoria_encontrada = true;
-                        break;
+                        break; 
                     }
                 }
                 if (!$categoria_encontrada) { #Si no entra en ninguna categoria preestablecida, va a "otros"
@@ -95,6 +120,8 @@
                     );
                 }
             }
+            
+            # Ordena los resultados primero según el orden predefinido en agrupar_estudios_array: primero el orden de los grupos, luego orden de estudios.
             uksort($estudio_array, "ordenar_grupos_de_estudios");
             foreach ($estudio_array as $key => $value) {
                 $grupo_estudios_actual = $key;
@@ -107,6 +134,7 @@
             return $estudio_array;
 	}
         
+        # Prox 2 funciones: usadas por uksort para emparejar el orden de los resultados con el preestablecido en $agrupar_estudios_array
         function ordenar_grupos_de_estudios ($a, $b) {
             global $agrupar_estudios_array;
             $a_pos = array_search($a, array_keys($agrupar_estudios_array)); 
@@ -130,8 +158,10 @@
             return $resultado;
         }
       
+# MAIN LOOP
 $array_final = array();
-$pacientes = pacientes_por_piso($_GET['piso']);
+$piso = filter_input(INPUT_GET, "piso", FILTER_SANITIZE_NUMBER_INT);
+$pacientes = pacientes_por_piso($piso);
 foreach ($pacientes as $paciente) {
 	foreach(ordenes_de_paciente($paciente['HC']) as $orden) {
             $resultado = procesar_estudio($orden['n_solicitud']);
@@ -139,8 +169,38 @@ foreach ($pacientes as $paciente) {
 	}
 	
 }
+echo json_encode($array_final);
 
-return json_encode($array_final);
+ /* Estructura del JSON final:
+  * [
+        {
+           "HC":11111,
+           "Nombre":"PEREZ, JUAN",
+           "Cama":"701A",
+           "orden":"222222222",
+           "Hemograma":{
+              "HTO":{
+                 "nombre_estudio":"Hematocrito",
+                 "resultado":"39",
+                 "unidades":null
+              },
+              "HGB":{
+                 "nombre_estudio":"Hemoglobina",
+                 "resultado":"12.5",
+                 "unidades":null
+              }
+           }
+           "Hepatograma:{
+           ....
+           }        
+       },
+       {
+           "HC":11112,
+           "Nombre": "Clooney, George"
+           ....
+       }
+   ]
+  */
 
 
 

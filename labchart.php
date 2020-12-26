@@ -2,10 +2,10 @@
 
         $debugging = true; # Cambia la fuente de datos. False: consulta en la DB del hospital. True: usa los datos de carpeta mock_data
         if ($debugging) {
-            $fecha_actual = "07/12/2020"; #Para que trate al mock como laboratorios de hoy.
+            $fecha_actual = DateTime::createFromFormat('d#m#Y G:i', "06/12/2020 23:00");  #Para que trate al mock como laboratorios de hoy.
         }
         else {
-            $fecha_actual = date('d/m/Y');
+            $fecha_actual = DateTime::createFromFormat('d#m#Y G:i', date('d/m/Y h:i'));  #Para que trate al mock como laboratorios de hoy.
         }
         
         $agrupar_estudios_array = array(
@@ -36,32 +36,30 @@
             return $pacientes_array;
 	}
 
-	function ordenes_de_paciente($HC) {	
+	function ordenes_de_paciente($HC, $timestamp_min) {	
             /* Consulta al web-service función ordenestot, junta todas las ordenes de un paciente (identificado por HC) 
              * en un array (n_solicitud, timestamp)" */
-            global $debugging, $fecha_actual;
+            global $debugging;
             $ordenes_array = array();
             if ($debugging) {
                 $ordenes_raw = json_decode(file_get_contents(".\\mock_data\\ordenes\\ordenes".$HC.".json"), true);
             } else {
                 $ordenes_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=ordenestot&HC=".$HC), true);
             }
-                    foreach ($ordenes_raw['ordenestot'] as $orden)	{
-                            $fecha_labo = substr($orden['ordenestot']['RECEPCION'], 0, 10); #Elimina la hora del timestamp del lab, deja solo la fecha.
-                            if ($fecha_labo == $fecha_actual) {  #Limita los laboratorios a los que sean del di­a actual. TODO: Manejo de fechas para incluir labos viejos.
-                                    $ordenes_array[] = array("n_solicitud" => $orden['ordenestot']['NRO_SOLICITUD'], "timestamp" => $orden['ordenestot']['RECEPCION']);
-
-                            }
-
-
+                foreach ($ordenes_raw['ordenestot'] as $orden) {
+                        $timestamp_labo = DateTime::createFromFormat('d#m#Y G:i', $orden['ordenestot']['RECEPCION']);
+                        if ($timestamp_labo > $timestamp_min) {
+                            $ordenes_array[] = array("n_solicitud" => $orden['ordenestot']['NRO_SOLICITUD'], "timestamp" => $timestamp_labo);
+                        }    
                     }
                     return $ordenes_array;
             }
 
-	function procesar_estudio($orden) {
+	function procesar_estudio($orden, $timestamp) {
             /* Busca los resultados de laboratorio de una orden, y los preprocesa para darles la estructura final:
              * array(
-             *      "orden" => 01234567
+             *      "orden" => 01234567,
+             *      "timestamp" => "20/11/2020 06:00"
              *      "Hemograma" => array(
              *              "HTO" => array(
              *                      "nombre_estudio" => "Hematocrito",
@@ -79,15 +77,20 @@
              *              )    
              * )
              */
-            #Recopila los datos en bruto del laboratorio y los pre-procesa
             global $debugging, $agrupar_estudios_array, $grupo_estudios_actual;
             $estudio_array = array();
+            $alertas = array();
             if ($debugging) {
                 $estudio_raw = json_decode(file_get_contents(".\\mock_data\\estudios\\estudio_".$orden.".json"), true);
+                if (!$estudio_raw) {
+                    return NULL;
+                }
             } else {
                 $estudio_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=estudiostot&orden=".$orden), true);
             }
+            
             $estudio_array['orden'] = $orden;
+            $estudio_array['timestamp'] = $timestamp;
             #Agrupa cada resultado del laboratorio segun los grupos definidos en $agrupar_estudios_array (Hemograma, hepatograma, etc)
             foreach ($estudio_raw['estudiostot'] as $estudio) {	
                 $codigo = $estudio['estudiostot']['CODANALISI']; 
@@ -97,6 +100,8 @@
                 if ($estudio['estudiostot']['NOMANALISIS'] == " ") { # Algunos "resultados" que en realidad no lo son (ej: orden de material descartable utilizado, interconsultas)
                     continue;
                 }
+                
+                
                 
                  # Itera en los distintos $grupos de $estudios predefinidos buscando a cual pertenece el $estudio. Cuando lo encuentra, break
                  # Si no lo encuentra: el grupo es "Otros".
@@ -125,7 +130,7 @@
             uksort($estudio_array, "ordenar_grupos_de_estudios");
             foreach ($estudio_array as $key => $value) {
                 $grupo_estudios_actual = $key;
-                if ($key == "orden") {
+                if ($key == "orden" or $key == "timestamp") {
                     continue;
                 }
                 uksort($value, "ordenar_estudios");
@@ -157,18 +162,23 @@
             $resultado = $a_pos - $b_pos;
             return $resultado;
         }
+        
+        function analisis_de_alertas($array_estudios) {
+            return $array_estudios;
+        }
       
 # MAIN LOOP
-$array_final = array();
+$array_parcial = array();
 $piso = filter_input(INPUT_GET, "piso", FILTER_SANITIZE_NUMBER_INT);
 $pacientes = pacientes_por_piso($piso);
 foreach ($pacientes as $paciente) {
-	foreach(ordenes_de_paciente($paciente['HC']) as $orden) {
-            $resultado = procesar_estudio($orden['n_solicitud']);
-            $array_final[] = array_merge($paciente, $resultado);
+	foreach(ordenes_de_paciente($paciente['HC'], $fecha_actual) as $orden) {
+            $resultado = procesar_estudio($orden['n_solicitud'], $orden['timestamp']);
+            if($resultado == NULL)continue;
+            $array_parcial[] = array_merge($paciente, $resultado);
 	}
-	
 }
+$array_final = analisis_de_alertas($array_parcial);
 echo json_encode($array_final);
 
  /* Estructura del JSON final:

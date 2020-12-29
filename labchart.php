@@ -1,5 +1,11 @@
 <?php
-
+        header("Access-Control-Allow-Origin: *");
+        header("Content-Type: application/json; charset=UTF-8");
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method == "GET"){
+            $piso = $_GET['piso'];
+        }
+		
         $debugging = true; # Cambia la fuente de datos. False: consulta en la DB del hospital. True: usa los datos de carpeta mock_data
         if ($debugging) {
             $fecha_actual = "07/12/2020"; #Para que trate al mock como laboratorios de hoy.
@@ -160,14 +166,12 @@
       
 # MAIN LOOP
 $array_final = array();
-$piso = filter_input(INPUT_GET, "piso", FILTER_SANITIZE_NUMBER_INT);
 $pacientes = pacientes_por_piso($piso);
 foreach ($pacientes as $paciente) {
 	foreach(ordenes_de_paciente($paciente['HC']) as $orden) {
             $resultado = procesar_estudio($orden['n_solicitud']);
             $array_final[] = array_merge($paciente, $resultado);
 	}
-	
 }
 echo json_encode($array_final);
 

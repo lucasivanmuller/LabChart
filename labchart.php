@@ -103,6 +103,10 @@
                 if ($estudio['estudiostot']['NOMANALISIS'] == " ") { # Algunos "resultados" que en realidad no lo son (ej: orden de material descartable utilizado, interconsultas)
                     continue;
                 }
+
+                if (is_null($estudio['estudiostot']['UNIDAD'])) {
+                    $estudio['estudiostot']['UNIDAD'] = " "; 
+                }
                 
                  # Itera en los distintos $grupos de $estudios predefinidos buscando a cual pertenece el $estudio. Cuando lo encuentra, break
                  # Si no lo encuentra: el grupo es "Otros".

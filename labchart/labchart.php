@@ -2,20 +2,20 @@
     header("Access-Control-Allow-Origin: *");
     header("Content-Type: application/json; charset=UTF-8");
     $method = $_SERVER['REQUEST_METHOD'];
-    
-    /* lachart.php: Script principal de la aplicación. Se lo consulta desde el frontend cuando el usuario selecciona un piso. Devuelve un JSON 
-     * con la data preparada para su visualización; o frena el proceso y devuelve string("usar cache") en caso de que el cache sea muy reciente.
+    error_reporting(E_ALL ^ E_WARNING);
+    /* lachart.php: Script principal de la aplicaciï¿½n. Se lo consulta desde el frontend cuando el usuario selecciona un piso. Devuelve un JSON 
+     * con la data preparada para su visualizaciï¿½n; o frena el proceso y devuelve string("usar cache") en caso de que el cache sea muy reciente.
      * Entrada: $_GET['piso'] existe en array(1, 3, 5, 6, 7, 8, 9)
-     * Funciones: Se encarga de recopilar los datos, conexión con la base de datos del laboratorio, darles la estructura, preprocesarlos, analizarlos,
+     * Funciones: Se encarga de recopilar los datos, conexiï¿½n con la base de datos del laboratorio, darles la estructura, preprocesarlos, analizarlos,
      * y hacerlos disponibles al frontend. 
      * Devuelve: echo array_JSON
      */
     
-    ### CONFIGURACIÓN Y PARÁMETROS INICIALES 
+    ### CONFIGURACIï¿½N Y PARï¿½METROS INICIALES 
     date_default_timezone_set("America/Argentina/Buenos_Aires");
     require_once 'include/vars.php'; // Importa variables configurables,  $agrupar_estudios_array y $abreviar_nombres_estudios
 	require_once 'include/config.php'; // Variables de configuracion, como $duracion_del_cache y $modo_desarrollo,
-    $piso = $_GET['piso']; // Única variable de entrada: El piso al cual se hace la consulta.   
+    $piso = $_GET['piso']; // ï¿½nica variable de entrada: El piso al cual se hace la consulta.   
 
     // Variables auxiliares de fechas.    
     if (!$modo_desarrollo) {
@@ -32,13 +32,13 @@
     
     ### SISTEMA DE CACHE:
     /* 
-    Mejora el rendimiento de la aplicación. El JSON final que devuelve labchart.php queda almacenado como archivo /cache/cache_piso_X.json
-    *  al final del proceso. Si existe un cache más reciente que $duracion_del_cache (por defecto: 2 min), reutiliza ese JSON almacenado 
+    Mejora el rendimiento de la aplicaciï¿½n. El JSON final que devuelve labchart.php queda almacenado como archivo /cache/cache_piso_X.json
+    *  al final del proceso. Si existe un cache mï¿½s reciente que $duracion_del_cache (por defecto: 2 min), reutiliza ese JSON almacenado 
     * transmitiendo al frontend "usar cache" y detiene el script.
-    * Si es más antiguo que $duracion_del_cache, el cache será lo que se muestre inicialmente hasta que labchart.php termine de ejecutarse
+    * Si es mï¿½s antiguo que $duracion_del_cache, el cache serï¿½ lo que se muestre inicialmente hasta que labchart.php termine de ejecutarse
     * y envie al frontend los datos actualizados.   */ 
     
-    $cache_file = "cache/cache_piso_" . $piso . ".json";
+    $cache_file = "cache_piso_" . $piso . ".json";
     if ((file_exists($cache_file) && (filemtime($cache_file) > (time() - 60 * $duracion_del_cache)) ) || $modo_solo_cache) {
         echo "usar cache";
         exit(0);
@@ -46,9 +46,9 @@
     // Fin del cache.
 
     
-    ### INTERFAZ VÍA WEB-SERVICE CON LA BASE DE DATOS (Laboratorio y HCA)
+    ### INTERFAZ Vï¿½A WEB-SERVICE CON LA BASE DE DATOS (Laboratorio y HCA)
     function pacientes_por_piso($piso) {	
-        /* Consulta al web-service función 'pacientes', organiza los datos recibidos en un array de estructura (HC, Nombre, Cama)
+        /* Consulta al web-service funciï¿½n 'pacientes', organiza los datos recibidos en un array de estructura (HC, Nombre, Cama)
          * Devuelve: array('HC', 'Nombre', 'Cama')    */
         global $modo_desarrollo; 
         $pacientes_array = array(); //Array principal.
@@ -58,24 +58,18 @@
         }
         
         # Obtener datos del web-service
-        if (in_array($piso, array(3, 5, 6, 7, 8, 9)))  { # Usa la funcion "pacientes" del web-service
-            $pacientes_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=pacientes&piso=".$piso), true);
+        if (in_array($piso, array(1, 3, 4, 5, 6, 7, 8, 9)))  { # Usa la funcion "pacientes" del web-service
+            $pacientes_raw = json_decode(file_get_contents("http://192.168.90.56:8007/html/internac.php?funcion=pacientes&piso=".$piso), true);
             foreach ($pacientes_raw['pacientes'] as $paciente) {
                 $pacientes_array[] = array('HC' => $paciente['pacientes']['hist_clinica'], "Nombre" => $paciente['pacientes']['apellido1'].", ".$paciente['pacientes']['nombre'],"Cama" => $paciente['pacientes']['cama']);
             }
         }
         
-        if ($piso == 1) { # Los datos de la guardia externa (piso 1) se recolectan de la funcion "urgencia" del web-service
-            $pacientes_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=urgencia"), true);
-            foreach ($pacientes_raw['urgencia'] as $paciente) {
-                $pacientes_array[] = array('HC' => $paciente['urgencia']['hist_clinica'], "Nombre" => $paciente['urgencia']['apellido1'].", ".$paciente['urgencia']['nombre'],"Cama" => $paciente['urgencia']['cama']);
-            }
-        }
         return $pacientes_array; //  array('HC', 'Nombre', 'Cama')
     }
 
     function ordenes_de_paciente($HC) {	
-        /* Consulta al web-service función ordenestot, junta todas las ordenes de un determinado paciente (identificado por N° de HC) .
+        /* Consulta al web-service funciï¿½n ordenestot, junta todas las ordenes de un determinado paciente (identificado por Nï¿½ de HC) .
          * Devuelve:array (n_solicitud, timestamp)" */
         global $modo_desarrollo;
         $ordenes_array = array();
@@ -83,11 +77,11 @@
         if ($modo_desarrollo) {
             $ordenes_raw = json_decode(file_get_contents(".\\mock_data\\ordenes\\ordenes".$HC.".json"), true);
         } else {
-            $ordenes_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=ordenestot&HC=".$HC), true);
+            $ordenes_raw = json_decode(file_get_contents("http://172.24.24.213:8041/api/DNLAB/OrdenesTot?hc=".$HC), true);
         }
-        foreach ($ordenes_raw['ordenestot'] as $orden) {
-            $timestamp_labo = DateTime::createFromFormat('d/m/Y H:i', $orden['ordenestot']['RECEPCION']);
-            $ordenes_array[] = array("n_solicitud" => $orden['ordenestot']['NRO_SOLICITUD'], "timestamp" => $timestamp_labo);
+        foreach ($ordenes_raw as $orden) {
+            $timestamp_labo = DateTime::createFromFormat('d/m/Y H:i', $orden['recepcion']);
+            $ordenes_array[] = array("n_solicitud" => $orden['nrO_SOLICITUD'], "timestamp" => $timestamp_labo);
         }
         return $ordenes_array;
     }
@@ -122,9 +116,9 @@
         $estudio_array['solicitud'] = $orden;
         $estudio_array['timestamp'] = $timestamp;  // El timestamp del estudio viene de ordenestot
         
-        ## Recopilación de los datos
+        ## Recopilaciï¿½n de los datos
         if (!$modo_desarrollo) {
-            $estudio_raw = json_decode(file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=estudiostot&orden=".$orden), true);
+            $estudio_raw = json_decode(file_get_contents("http://172.24.24.213:8041/api/DNLAB/EstudiosTot?orden=".$orden), true);
         } else { // Debugging mode
             $estudio_raw = json_decode(@ file_get_contents(".\\mock_data\\estudios\\estudio_".$orden.".json"), true);
             if (!$estudio_raw) {
@@ -133,26 +127,26 @@
         }
         // Preprocesamiento de los datos del estudio:
         // Agrupa cada resultado del laboratorio segun los grupos definidos en $agrupar_estudios_array (Hemograma, hepatograma, etc)
-        foreach ($estudio_raw['estudiostot'] as $estudio) {	
-            $codigo = $estudio['estudiostot']['CODANALISI']; // 3 o 4 letras en mayúscula que identifican un estudio. Ej: HTO = Hematocrito.
+        foreach ($estudio_raw as $estudio) {	
+            $codigo = $estudio['codanalisi']; // 3 o 4 letras en mayï¿½scula que identifican un estudio. Ej: HTO = Hematocrito.
             
             if (in_array($codigo, $agrupar_estudios_array['Excluir'])) { 
                 continue;
             }
-            if ($estudio['estudiostot']['NOMANALISIS'] == " ") { # Algunos "resultados" que en realidad no lo son. Ej: orden de material descartable, interconsultas)
+            if ($estudio['nomanalisis'] == " ") { # Algunos "resultados" que en realidad no lo son. Ej: orden de material descartable, interconsultas)
                 continue;
             }
-            if (is_null($estudio['estudiostot']['UNIDAD'])) { 
-                $estudio['estudiostot']['UNIDAD'] = ""; 
+            if (is_null($estudio['unidad'])) { 
+                $estudio['UNIDAD'] = ""; 
             }
-            if ($estudio['estudiostot']['NOMANALISIS'] == "Total") { 
-                $estudio['estudiostot']['NOMANALISIS'] = "Bilirrubina total";
+            if ($estudio['nomanalisis'] == "Total") { 
+                $estudio['nomanalisis'] = "Bilirrubina total";
             }
-            if ($estudio['estudiostot']['NOMANALISIS'] == "Directa") { 
-                $estudio['estudiostot']['NOMANALISIS'] = "Bilirrubina directa";
+            if ($estudio['nomanalisis'] == "Directa") { 
+                $estudio['nomanalisis'] = "Bilirrubina directa";
             }
-            if ($estudio['estudiostot']['NOMANALISIS'] == "Indirecta") { 
-                $estudio['estudiostot']['NOMANALISIS'] = "Bilirrubina indirecta";
+            if ($estudio['nomanalisis'] == "Indirecta") { 
+                $estudio['nomanalisis'] = "Bilirrubina indirecta";
             }
 
              # Itera en los distintos $grupos de $estudios predefinidos, buscando a cual pertenece este $estudio. Cuando lo encuentra, break.
@@ -169,18 +163,18 @@
                 $grupo_del_estudio = 'Otros';
             }
             
-            // Comienza a crear el array que devuelve la función
+            // Comienza a crear el array que devuelve la funciï¿½n
             $estudio_array[$grupo_del_estudio][$codigo] = array(
-            'nombre_estudio' => $estudio['estudiostot']['NOMANALISIS'], 
-            'resultado' => $estudio['estudiostot']['RESULTADO'],
-            'unidades' => $estudio['estudiostot']['UNIDAD'],
-            'color' => "black", // Color con el que se mostrará. Las alertas pueden modificar este parámetro más adelante
-            'info' => ""  // Snippet que se muestra al poner el mouse sobre el valor. Las alertas pueden agregar info acá.
+            'nombre_estudio' => $estudio['nomanalisis'], 
+            'resultado' => $estudio['resultado'],
+            'unidades' => $estudio['unidad'],
+            'color' => "black", // Color con el que se mostrarï¿½. Las alertas pueden modificar este parï¿½metro mï¿½s adelante
+            'info' => ""  // Snippet que se muestra al poner el mouse sobre el valor. Las alertas pueden agregar info acï¿½.
             );
         }
         
         // Postprocesamiento de los datos.
-        # Ordena los resultados según el orden predefinido en agrupar_estudios_array: primero el orden de los grupos, luego orden de estudios.
+        # Ordena los resultados segï¿½n el orden predefinido en agrupar_estudios_array: primero el orden de los grupos, luego orden de estudios.
         uksort($estudio_array, "ordenar_grupos_de_estudios");
         foreach ($estudio_array as $key => $value) {
             $grupo_estudios_actual = $key;
@@ -197,21 +191,21 @@
 
     
     
-    ### MODULO DE ANÁLISIS DE LOS RESULTADOS Y GENERACIÓN DE ALERTAS
+    ### MODULO DE ANï¿½LISIS DE LOS RESULTADOS Y GENERACIï¿½N DE ALERTAS
     function analisis_de_alertas($estudios_de_hoy, $todos_los_estudios, $piso) {
         /* Sigue una serie de reglas preestablecidas para detectar resultados anormales. En caso de detectarse, agrega al array de resultados
-         * una descripción del alerta en el campo "info", la cual se mostrará en un snippet por el frontend. Además, cambia el valor "color" en 
-         * ese mismo array, lo cual se verá reflejado desde el frontend con un cambio en el color del texto de dicho resultado.
+         * una descripciï¿½n del alerta en el campo "info", la cual se mostrarï¿½ en un snippet por el frontend. Ademï¿½s, cambia el valor "color" en 
+         * ese mismo array, lo cual se verï¿½ reflejado desde el frontend con un cambio en el color del texto de dicho resultado.
          * 
-         * Entrada: $estudios_de_hoy: Se limita a los resultados de las últimas 24hs, que son los que se analizan y se muestran en el frontend.
-         *          $todos_los_estudios: Se utiliza solo con fines de análisis, para comparar los $estudios_de_hoy  con otros resultados previos. 
+         * Entrada: $estudios_de_hoy: Se limita a los resultados de las ï¿½ltimas 24hs, que son los que se analizan y se muestran en el frontend.
+         *          $todos_los_estudios: Se utiliza solo con fines de anï¿½lisis, para comparar los $estudios_de_hoy  con otros resultados previos. 
          *          No se muestran en el frontend directamente.  
          *          $piso.
          * Salida: aray $estudios_de_hoy modificado en sus campos "info" y "color" de los estudios que lo requieran
-         * Funcionamiento: Itera cada uno de las órdenes de estudios, luego itera sobre cada estudio individual (Hematocrito, hemoglobina, etc).
+         * Funcionamiento: Itera cada uno de las ï¿½rdenes de estudios, luego itera sobre cada estudio individual (Hematocrito, hemoglobina, etc).
          * De cada estudio individual, busca si dicho estudio tiene una serie de reglas, en cuyo caso las sigue.
          * En general estas reglas son comparaciones con valores de corte absolutos. En algunos casos
-         * pueden ser comparaciones relativas a valores previos, en dicho caso también itera sobre los estudios previos para compararlos.
+         * pueden ser comparaciones relativas a valores previos, en dicho caso tambiï¿½n itera sobre los estudios previos para compararlos.
            Ej: Si el estudio es HTO (Hematocrito) y el valor es < 21, info= 'Anemia severa', color = 'red'.  */
          
         foreach($estudios_de_hoy as $key_estudio => $estudio_analizado) {
@@ -219,7 +213,7 @@
                 foreach($grupo_de_estudios as $key_codigo => $array_resultado) {
                     $resultado_de_hoy = $array_resultado['resultado'];
                     
-                    if (!is_numeric($resultado_de_hoy)) { # Esto podría cambiarse más adelante, pero en principio solo analiza resultados numéricos.
+                    if (!is_numeric($resultado_de_hoy)) { # Esto podrï¿½a cambiarse mï¿½s adelante, pero en principio solo analiza resultados numï¿½ricos.
                             continue; 
                     }
                     
@@ -235,7 +229,7 @@
                             $estudios_de_hoy[$key_estudio][$key_grupos][$key_codigo]["color"] = "red";
                             $estudios_de_hoy[$key_estudio][$key_grupos][$key_codigo]["info"] .= "Anemia severa con probable requerimiento tranfusional. ";  
                         }
-                        # Analisis comparativo con resultados previos. Busca caídas bruscas del hematocrito en las últimas 96hs.
+                        # Analisis comparativo con resultados previos. Busca caï¿½das bruscas del hematocrito en las ï¿½ltimas 96hs.
                         $estudios_comparativos = array_filter($todos_los_estudios, function($estudio_a_comparar) use($estudio_analizado) {return $estudio_a_comparar["timestamp"] < $estudio_analizado['timestamp'] && $estudio_a_comparar["HC"] == $estudio_analizado['HC'] && isset($estudio_a_comparar["Hemograma"]["HTO"]);});
                         foreach($estudios_comparativos as $estudio_a_comparar) {
                             $delta_resultado = $resultado_de_hoy - $estudio_a_comparar["Hemograma"]["HTO"]["resultado"];
@@ -277,7 +271,7 @@
                             $estudios_de_hoy[$key_estudio][$key_grupos][$key_codigo]["color"] = "orange";
                         }
 
-                        #Comparación con resultados de dias previos
+                        #Comparaciï¿½n con resultados de dias previos
                         $estudios_comparativos = array_filter($todos_los_estudios, function($estudio_a_comparar) use($estudio_analizado) {return $estudio_a_comparar["timestamp"] < $estudio_analizado['timestamp'] && isset($estudio_a_comparar["Funcion renal"]["CRE"]);});
                         foreach($estudios_comparativos as $estudio_a_comparar) {
                             if ($estudio_a_comparar['HC'] != $estudio_analizado["HC"]) {
@@ -354,7 +348,7 @@
                     /* Resume el resultado de un laboratorio entero en dos strings, y las agrega al array de estudios.
                             - $textificado_corto: Modo compacto y resumido para el pase. Agrupa algunos estudios (hepatograma, coagulograma) con una sintaxis
                             tipo 12/34/56/78/90. No usa unidades. Omite algunos resultados no relevantes.
-                            - $textificado_largo: Modo expresivo, completo, con unidades, que cumple con formalidades médico-legales
+                            - $textificado_largo: Modo expresivo, completo, con unidades, que cumple con formalidades mï¿½dico-legales
 
                             returns: nuevo array de estudios actualizado con las strings.
                             */
@@ -393,7 +387,7 @@
                                             continue;
                                     }
                                     
-                                    // Formateo de estado ácido base / gasometria
+                                    // Formateo de estado ï¿½cido base / gasometria
                                     if ($key_grupos == "Gasometria") {
                                             if ($solicitud["Gasometria"]["TM"]["resultado"] == "AR") { 
                                                     $EAB = "EABa ";			
@@ -413,7 +407,7 @@
                                     }
 
                 // Formateo del resto de estudios no contemplados en los casos especiales previos
-                // NOTA: En textificado_corto, sólo se muestran los estudios especificamente incluidos en el array $abreviar_nombres_estudios
+                // NOTA: En textificado_corto, sï¿½lo se muestran los estudios especificamente incluidos en el array $abreviar_nombres_estudios
                 // el cual se configura desde /include/vars.php . Para agregar nuevos estudios, remitirse a dicho archivo.
                 // $textificado_largo muestra todos, excepto los que hayan sido por el array $agrupar_estudios_array alojado en el mismo fichero.
                 foreach($grupo_de_estudios as $codigo_de_estudio => $estudio) {
@@ -468,7 +462,7 @@
     
 /*  function agrupar_por_pacientes($array_original, $pacientes) {
         # FUNCION DESHABILITADA.
-        # Quizás utilice esto en algun momento para emparchar la estructura de datos. El objetivo es  agrupar los estudios por paciente. 
+        # Quizï¿½s utilice esto en algun momento para emparchar la estructura de datos. El objetivo es  agrupar los estudios por paciente. 
         * Requiere cambios en el frontend.
         $array_resultado = array();
         foreach ($pacientes as $paciente) {
@@ -568,7 +562,7 @@ foreach ($pacientes as $paciente) {
 foreach ($pacientes as $paciente) {
 	foreach(ordenes_de_paciente($paciente['HC']) as $orden) {
 		echo $orden['n_solicitud'];
-		$estudio = file_get_contents("http://172.24.24.131:8007/html/internac.php?funcion=estudiostot&orden=" . $orden['n_solicitud']);
+		$estudio = file_get_contents("http://172.24.24.213:8041/api/DNLAB/EstudiosTot?orden=" . $orden['n_solicitud']);
 		$fp = fopen('estudio_' . $orden['n_solicitud'] . '.json', 'w');
 		fwrite($fp, $estudio);
 		fclose($fp);	
